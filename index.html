@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#0a0a0a">
+  <title>Routine</title>
+  <style>
+    :root {
+      --bg:       #0a0a0a;
+      --surface:  #141414;
+      --surface2: #1e1e1e;
+      --border:   #282828;
+      --text:     #e8e8e8;
+      --muted:    #555;
+      --dim:      #888;
+      --accent:   #6366f1;
+      --success:  #22c55e;
+      --danger:   #f87171;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+      min-height: 100vh;
+      max-width: 430px;
+      margin: 0 auto;
+    }
+
+    /* ── Header ──────────────────────────────────── */
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: max(52px, calc(16px + env(safe-area-inset-top))) 20px 16px;
+    }
+
+    .h-title {
+      font-size: 28px; font-weight: 700; letter-spacing: -0.5px;
+      outline: none; cursor: text; min-width: 4px;
+      border-bottom: 2px solid transparent;
+      transition: border-color .2s;
+    }
+    .h-title:focus { border-bottom-color: var(--accent); }
+
+    .h-sub {
+      display: flex; align-items: center; gap: 5px;
+      margin-top: 4px;
+    }
+    .h-date { font-size: 13px; color: var(--dim); }
+    .h-sep  { font-size: 13px; color: var(--muted); }
+
+    .h-start-wrap {
+      display: flex; align-items: center; gap: 4px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 3px 10px;
+      cursor: pointer;
+    }
+    .h-start-label { font-size: 11px; color: var(--muted); }
+    .h-start-val   { font-size: 12px; color: var(--dim); font-variant-numeric: tabular-nums; }
+    .h-start-val.set { color: var(--accent); }
+
+    .add-btn {
+      width: 42px; height: 42px; border-radius: 50%;
+      background: var(--accent); border: none; cursor: pointer;
+      color: #fff; font-size: 26px; line-height: 1;
+      display: flex; align-items: center; justify-content: center;
+      transition: transform .12s, opacity .12s; flex-shrink: 0;
+    }
+    .add-btn:active { transform: scale(.9); opacity: .75; }
+
+    /* ── Progress ────────────────────────────────── */
+    .prog-wrap { padding: 0 20px 20px; }
+    .prog-bar  { height: 2px; background: var(--surface2); border-radius: 2px; overflow: hidden; }
+    .prog-fill {
+      height: 100%; background: var(--accent); border-radius: 2px;
+      transition: width .45s cubic-bezier(.34,1.56,.64,1);
+    }
+    .prog-text { font-size: 11px; color: var(--muted); text-align: right; margin-top: 5px; letter-spacing: .3px; }
+
+    /* ── List ────────────────────────────────────── */
+    #list { list-style: none; padding: 0 16px max(80px, calc(60px + env(safe-area-inset-bottom))); }
+
+    .item {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      margin-bottom: 8px;
+      display: flex; align-items: center;
+      padding: 0 14px; height: 64px; gap: 10px;
+      transition: opacity .25s;
+    }
+    .item.done        { opacity: .4; }
+    .item.drag-source { opacity: 0 !important; }
+
+    .handle {
+      color: var(--muted); font-size: 17px; letter-spacing: -1px;
+      padding: 10px 2px; cursor: grab; user-select: none; flex-shrink: 0;
+    }
+
+    .time-range {
+      font-size: 11px; font-variant-numeric: tabular-nums;
+      color: var(--dim); flex-shrink: 0; min-width: 80px;
+      white-space: nowrap;
+    }
+
+    .info { flex: 1; min-width: 0; cursor: pointer; }
+    .item-name {
+      font-size: 15px; font-weight: 500;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .item.done .item-name { text-decoration: line-through; color: var(--dim); }
+    .item-dur { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+    .check {
+      width: 26px; height: 26px; border-radius: 50%;
+      border: 1.5px solid var(--border); background: transparent;
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; color: #fff; font-size: 13px; font-weight: 700;
+      transition: background .2s, border-color .2s;
+    }
+    .check.on { background: var(--success); border-color: var(--success); }
+
+    /* ── Empty ───────────────────────────────────── */
+    .empty { text-align: center; padding: 80px 20px; color: var(--muted); }
+    .empty-icon { font-size: 28px; margin-bottom: 14px; opacity: .4; }
+    .empty-text { font-size: 14px; line-height: 1.8; }
+
+    /* ── Modal (bottom sheet) ────────────────────── */
+    .modal {
+      position: fixed; inset: 0; z-index: 100;
+      display: flex; align-items: flex-end;
+      visibility: hidden; pointer-events: none;
+    }
+    .modal.open { visibility: visible; pointer-events: auto; }
+
+    .overlay {
+      position: absolute; inset: 0;
+      background: rgba(0,0,0,0); backdrop-filter: blur(0px);
+      transition: background .3s, backdrop-filter .3s;
+    }
+    .modal.open .overlay { background: rgba(0,0,0,.65); backdrop-filter: blur(6px); }
+
+    .sheet {
+      position: relative; z-index: 1;
+      background: var(--surface); border-radius: 22px 22px 0 0;
+      width: 100%;
+      padding: 20px 20px max(44px, calc(20px + env(safe-area-inset-bottom)));
+      transform: translateY(100%);
+      transition: transform .3s cubic-bezier(.32,.72,0,1);
+    }
+    .modal.open .sheet { transform: translateY(0); }
+
+    .sh-handle {
+      width: 36px; height: 4px; background: var(--border);
+      border-radius: 2px; margin: 0 auto 20px;
+    }
+    .sh-title { font-size: 17px; font-weight: 600; text-align: center; margin-bottom: 20px; }
+
+    .field { margin-bottom: 14px; }
+    .field-label {
+      font-size: 11px; color: var(--dim);
+      text-transform: uppercase; letter-spacing: .5px;
+      margin-bottom: 6px; display: block;
+    }
+    .field-input {
+      width: 100%; background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 10px; padding: 13px 14px; color: var(--text);
+      font-size: 16px; outline: none; font-family: inherit;
+      appearance: none; transition: border-color .2s;
+      color-scheme: dark;
+    }
+    .field-input:focus { border-color: var(--accent); }
+
+    .actions { display: flex; gap: 10px; margin-top: 20px; }
+    .btn {
+      flex: 1; padding: 14px; border-radius: 12px; border: none;
+      font-size: 15px; font-weight: 600; cursor: pointer; font-family: inherit;
+      transition: opacity .15s;
+    }
+    .btn:active { opacity: .7; }
+    .btn-sec { background: var(--surface2); color: var(--dim); }
+    .btn-pri { background: var(--accent); color: #fff; }
+    .btn-del {
+      width: 100%; margin-top: 10px;
+      background: rgba(248,113,113,.1); color: var(--danger);
+    }
+
+    /* ── Drag clone ──────────────────────────────── */
+    #drag-clone {
+      position: fixed; pointer-events: none; z-index: 300;
+      display: none; align-items: center;
+      border-radius: 14px; height: 64px; gap: 10px; padding: 0 14px;
+      background: var(--surface2); border: 1px solid var(--accent);
+      box-shadow: 0 16px 48px rgba(0,0,0,.75); opacity: .97;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="h-title" id="hTitle" contenteditable="true" spellcheck="false"></div>
+    <div class="h-sub">
+      <span class="h-date" id="hDate"></span>
+      <span class="h-sep">·</span>
+      <div class="h-start-wrap" id="startWrap">
+        <span class="h-start-label">開始</span>
+        <span class="h-start-val" id="startVal">--:--</span>
+      </div>
+    </div>
+  </div>
+  <button class="add-btn" id="addBtn">+</button>
+</header>
+
+<div class="prog-wrap">
+  <div class="prog-bar"><div class="prog-fill" id="progFill" style="width:0%"></div></div>
+  <div class="prog-text" id="progText">0 / 0 完了</div>
+</div>
+
+<ul id="list"></ul>
+<div id="drag-clone"></div>
+
+<!-- タスク追加・編集 Modal -->
+<div class="modal" id="modal">
+  <div class="overlay" id="overlay"></div>
+  <div class="sheet">
+    <div class="sh-handle"></div>
+    <div class="sh-title" id="shTitle">追加</div>
+    <div class="field">
+      <label class="field-label">ルーティン名</label>
+      <input class="field-input" id="iName" type="text" placeholder="例：朝のストレッチ" autocomplete="off">
+    </div>
+    <div class="field">
+      <label class="field-label">所要時間（分）</label>
+      <input class="field-input" id="iDur" type="number" min="1" max="999" placeholder="30">
+    </div>
+    <div class="actions">
+      <button class="btn btn-sec" id="btnCancel">キャンセル</button>
+      <button class="btn btn-pri" id="btnSave">保存</button>
+    </div>
+    <button class="btn btn-del" id="btnDelete" style="display:none">削除する</button>
+  </div>
+</div>
+
+<!-- 開始時刻 Modal -->
+<div class="modal" id="startModal">
+  <div class="overlay" id="startOverlay"></div>
+  <div class="sheet">
+    <div class="sh-handle"></div>
+    <div class="sh-title">開始時刻</div>
+    <div class="field">
+      <label class="field-label">全体の開始時刻</label>
+      <input class="field-input" id="iStartTime" type="time">
+    </div>
+    <div class="actions">
+      <button class="btn btn-sec" id="startCancel">キャンセル</button>
+      <button class="btn btn-pri" id="startSave">保存</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Keys ─────────────────────────────────────────────────────────
+const KEY_DATA     = 'routine_v1';
+const KEY_DATE     = 'routine_date';
+const KEY_SETTINGS = 'routine_settings';
+
+// ── State ─────────────────────────────────────────────────────────
+let data     = [];
+let settings = { title: 'Routine', startTime: '' };
+let editId   = null;
+
+// ── Helpers ───────────────────────────────────────────────────────
+const $       = id => document.getElementById(id);
+const uid     = () => Math.random().toString(36).slice(2) + Date.now().toString(36);
+const todayStr = () => new Date().toISOString().slice(0, 10);
+
+function esc(s) {
+  return String(s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── Time calculation ──────────────────────────────────────────────
+function calcTimes() {
+  if (!settings.startTime) return data.map(() => null);
+
+  const [h0, m0] = settings.startTime.split(':').map(Number);
+  let total = h0 * 60 + m0;
+
+  const fmt = n => {
+    const h = Math.floor(n / 60) % 24;
+    const m = n % 60;
+    return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+  };
+
+  return data.map(r => {
+    const start = fmt(total);
+    if (r.duration) {
+      total += r.duration;
+      return `${start}〜${fmt(total)}`;
+    }
+    return start;
+  });
+}
+
+// ── Storage ───────────────────────────────────────────────────────
+function load() {
+  try { data = JSON.parse(localStorage.getItem(KEY_DATA)) || []; } catch { data = []; }
+  try { settings = { title: 'Routine', startTime: '', ...JSON.parse(localStorage.getItem(KEY_SETTINGS)) }; } catch {}
+
+  const today = todayStr();
+  if (localStorage.getItem(KEY_DATE) !== today) {
+    data.forEach(r => r.done = false);
+    localStorage.setItem(KEY_DATE, today);
+    saveData();
+  }
+}
+function saveData()     { localStorage.setItem(KEY_DATA,     JSON.stringify(data)); }
+function saveSettings() { localStorage.setItem(KEY_SETTINGS, JSON.stringify(settings)); }
+
+// ── Render ────────────────────────────────────────────────────────
+function renderDate() {
+  const d = new Date();
+  const w = ['日','月','火','水','木','金','土'][d.getDay()];
+  $('hDate').textContent = `${d.getMonth()+1}月${d.getDate()}日（${w}）`;
+}
+
+function renderHeader() {
+  const titleEl = $('hTitle');
+  // only update if not focused (to avoid cursor jump)
+  if (document.activeElement !== titleEl) {
+    titleEl.textContent = settings.title;
+  }
+  document.title = settings.title;
+
+  const valEl = $('startVal');
+  if (settings.startTime) {
+    valEl.textContent = settings.startTime;
+    valEl.classList.add('set');
+  } else {
+    valEl.textContent = '--:--';
+    valEl.classList.remove('set');
+  }
+}
+
+function render() {
+  const done  = data.filter(r => r.done).length;
+  const total = data.length;
+  $('progFill').style.width = total ? `${(done/total)*100}%` : '0%';
+  $('progText').textContent = `${done} / ${total} 完了`;
+
+  const list  = $('list');
+  const times = calcTimes();
+
+  if (!total) {
+    list.innerHTML = `
+      <li class="empty">
+        <div class="empty-icon">— —</div>
+        <div class="empty-text">ルーティンがまだありません<br>右上の ＋ から追加してください</div>
+      </li>`;
+    return;
+  }
+
+  list.innerHTML = '';
+  data.forEach((r, i) => {
+    const li = document.createElement('li');
+    li.className = 'item' + (r.done ? ' done' : '');
+    li.dataset.id = r.id;
+
+    const timeHtml = times[i]
+      ? `<span class="time-range">${esc(times[i])}</span>`
+      : '';
+
+    li.innerHTML = `
+      <span class="handle">⠿</span>
+      ${timeHtml}
+      <div class="info" data-edit="${esc(r.id)}">
+        <div class="item-name">${esc(r.name)}</div>
+        ${r.duration ? `<div class="item-dur">${r.duration}分</div>` : ''}
+      </div>
+      <button class="check${r.done ? ' on' : ''}" data-chk="${esc(r.id)}">${r.done ? '✓' : ''}</button>
+    `;
+    list.appendChild(li);
+  });
+
+  list.querySelectorAll('[data-chk]').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      const r = data.find(x => x.id === btn.dataset.chk);
+      if (r) { r.done = !r.done; saveData(); render(); }
+    });
+  });
+
+  list.querySelectorAll('[data-edit]').forEach(el => {
+    el.addEventListener('click', () => {
+      openModal('edit', data.find(r => r.id === el.dataset.edit));
+    });
+  });
+
+  initDrag();
+}
+
+// ── Title editing ─────────────────────────────────────────────────
+const titleEl = $('hTitle');
+titleEl.addEventListener('blur', () => {
+  const val = titleEl.textContent.trim();
+  settings.title = val || 'Routine';
+  if (!val) titleEl.textContent = settings.title;
+  document.title = settings.title;
+  saveSettings();
+});
+titleEl.addEventListener('keydown', e => {
+  if (e.key === 'Enter') { e.preventDefault(); titleEl.blur(); }
+});
+
+// ── Start time modal ──────────────────────────────────────────────
+$('startWrap').addEventListener('click', () => {
+  $('iStartTime').value = settings.startTime || '';
+  $('startModal').classList.add('open');
+  setTimeout(() => $('iStartTime').focus(), 340);
+});
+$('startOverlay').addEventListener('click', () => $('startModal').classList.remove('open'));
+$('startCancel').addEventListener('click',  () => $('startModal').classList.remove('open'));
+$('startSave').addEventListener('click', () => {
+  settings.startTime = $('iStartTime').value;
+  saveSettings();
+  $('startModal').classList.remove('open');
+  renderHeader();
+  render();
+});
+
+// ── Task modal ────────────────────────────────────────────────────
+function openModal(mode, r) {
+  editId = r?.id ?? null;
+  $('shTitle').textContent = mode === 'add' ? '追加' : '編集';
+  $('iName').value = r?.name     ?? '';
+  $('iDur').value  = r?.duration ?? '';
+  $('btnDelete').style.display = mode === 'edit' ? 'block' : 'none';
+  $('modal').classList.add('open');
+  setTimeout(() => $('iName').focus(), 340);
+}
+
+function closeModal() {
+  $('modal').classList.remove('open');
+  editId = null;
+}
+
+$('addBtn').addEventListener('click',    () => openModal('add', null));
+$('overlay').addEventListener('click',   closeModal);
+$('btnCancel').addEventListener('click', closeModal);
+
+$('btnSave').addEventListener('click', () => {
+  const name = $('iName').value.trim();
+  if (!name) { $('iName').focus(); return; }
+  const duration = parseInt($('iDur').value) || null;
+
+  if (editId) {
+    const r = data.find(x => x.id === editId);
+    if (r) Object.assign(r, { name, duration });
+  } else {
+    data.push({ id: uid(), name, duration, done: false });
+  }
+  saveData(); render(); closeModal();
+});
+
+$('btnDelete').addEventListener('click', () => {
+  if (!editId) return;
+  data = data.filter(r => r.id !== editId);
+  saveData(); render(); closeModal();
+});
+
+$('iName').addEventListener('keydown', e => {
+  if (e.key === 'Enter') $('btnSave').click();
+});
+
+// ── Drag & Drop (touch) ───────────────────────────────────────────
+let drag = null;
+
+function initDrag() {
+  $('list').querySelectorAll('.handle').forEach(h => {
+    h.addEventListener('touchstart', onDragStart, { passive: false });
+  });
+}
+
+function onDragStart(e) {
+  e.preventDefault();
+  const touch = e.touches[0];
+  const item  = e.currentTarget.closest('.item');
+  const rect  = item.getBoundingClientRect();
+  const clone = $('drag-clone');
+
+  clone.innerHTML = item.innerHTML;
+  Object.assign(clone.style, {
+    display: 'flex',
+    width:   rect.width  + 'px',
+    height:  rect.height + 'px',
+    top:     rect.top    + 'px',
+    left:    rect.left   + 'px',
+  });
+
+  item.classList.add('drag-source');
+  drag = { item, clone, offsetY: touch.clientY - rect.top };
+
+  document.addEventListener('touchmove', onDragMove, { passive: false });
+  document.addEventListener('touchend',  onDragEnd,  { once: true });
+}
+
+function onDragMove(e) {
+  if (!drag) return;
+  e.preventDefault();
+  const y = e.touches[0].clientY;
+
+  drag.clone.style.top = (y - drag.offsetY) + 'px';
+
+  const list   = $('list');
+  const others = [...list.querySelectorAll('.item:not(.drag-source)')];
+  let placed   = false;
+
+  for (const el of others) {
+    const r = el.getBoundingClientRect();
+    if (y < r.top + r.height / 2) {
+      list.insertBefore(drag.item, el);
+      placed = true;
+      break;
+    }
+  }
+  if (!placed) list.appendChild(drag.item);
+}
+
+function onDragEnd() {
+  document.removeEventListener('touchmove', onDragMove);
+  if (!drag) return;
+
+  const { item, clone } = drag;
+  const finalRect = item.getBoundingClientRect();
+
+  clone.style.transition = 'top .15s ease, opacity .15s';
+  clone.style.top     = finalRect.top + 'px';
+  clone.style.opacity = '0';
+  setTimeout(() => {
+    clone.style.display    = 'none';
+    clone.style.transition = '';
+    clone.style.opacity    = '0.97';
+  }, 160);
+
+  item.classList.remove('drag-source');
+
+  // sync data from DOM order, then recalculate times
+  data = [...$('list').querySelectorAll('.item')]
+    .map(el => data.find(r => r.id === el.dataset.id))
+    .filter(Boolean);
+  saveData();
+  render(); // re-render to update all time ranges
+
+  drag = null;
+}
+
+// ── Midnight reset ────────────────────────────────────────────────
+setInterval(() => {
+  if (localStorage.getItem(KEY_DATE) !== todayStr()) { load(); render(); }
+}, 60_000);
+
+// ── Boot ──────────────────────────────────────────────────────────
+renderDate();
+load();
+renderHeader();
+render();
+</script>
+</body>
+</html>
