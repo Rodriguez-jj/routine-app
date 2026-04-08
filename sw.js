@@ -1,6 +1,6 @@
 // ── バージョンをここで管理 ────────────────────────────────────────
 // デプロイのたびにインクリメントする → 古いキャッシュが自動削除される
-const CACHE_VERSION = 'v3';
+const CACHE_VERSION = 'v4';
 const CACHE_NAME    = `routine-${CACHE_VERSION}`;
 
 const FILES_TO_CACHE = [
