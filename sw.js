@@ -1,6 +1,6 @@
 // ── バージョンをここで管理 ────────────────────────────────────────
 // デプロイのたびにインクリメントする → 古いキャッシュが自動削除される
-const CACHE_VERSION = 'v2';
+const CACHE_VERSION = 'v3';
 const CACHE_NAME    = `routine-${CACHE_VERSION}`;
 
 const FILES_TO_CACHE = [
@@ -31,10 +31,24 @@ self.addEventListener('activate', e => {
   );
 });
 
-// フェッチ: キャッシュ優先、なければネットワーク
+// フェッチ: HTML はネットワーク優先（即時反映）、他はキャッシュ優先
 self.addEventListener('fetch', e => {
-  e.respondWith(
-    caches.match(e.request)
-      .then(cached => cached || fetch(e.request))
-  );
+  const url = e.request.url;
+  const isHtml = url.endsWith('.html') || url.endsWith('/') || !url.includes('.');
+
+  if (isHtml) {
+    e.respondWith(
+      fetch(e.request)
+        .then(res => {
+          const clone = res.clone();
+          caches.open(CACHE_NAME).then(c => c.put(e.request, clone));
+          return res;
+        })
+        .catch(() => caches.match(e.request))
+    );
+  } else {
+    e.respondWith(
+      caches.match(e.request).then(cached => cached || fetch(e.request))
+    );
+  }
 });
