@@ -377,18 +377,16 @@ function render() {
     li.className = 'item' + (r.done ? ' done' : '');
     li.dataset.id = r.id;
 
-    const timeHtml = times[i]
-      ? `<span class="time-range">${esc(times[i])}</span>`
-      : '';
+    const timeHtml = `<span class="time-range">${times[i] ? esc(times[i]) : ''}</span>`;
 
     li.innerHTML = `
-      <span class="handle">⠿</span>
+      <button class="check${r.done ? ' on' : ''}" data-chk="${esc(r.id)}">${r.done ? '✓' : ''}</button>
       ${timeHtml}
       <div class="info" data-edit="${esc(r.id)}">
         <div class="item-name">${esc(r.name)}</div>
         ${r.duration ? `<div class="item-dur">${r.duration}分</div>` : ''}
       </div>
-      <button class="check${r.done ? ' on' : ''}" data-chk="${esc(r.id)}">${r.done ? '✓' : ''}</button>
+      <span class="handle">⠿</span>
     `;
     list.appendChild(li);
   });
